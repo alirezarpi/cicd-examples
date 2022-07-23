@@ -24,8 +24,10 @@ and there's alot going on there; So please, you're more than welcome in contribu
 
 ```
 base-images: consists of base images needed for the projects, I used bitnami based, and needed to install `envconsul` on images.
+
 stateful-services: consists of stateful applications with the `helm charts` helps included.
         |_ policies: consists of `vault` policies needed to application launch - for statefulsets is `side-car vault` integration.
+
 stateless-services: consists of stateless applications with the `helm charts` directory included.
         |- cd-build: consists of `helm charts` specific for the application.
             |_ templates: conists of `helm charts` templates.
