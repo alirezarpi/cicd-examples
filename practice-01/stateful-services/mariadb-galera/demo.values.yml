@@ -1,0 +1,37 @@
+
+galera:
+  name: "mariadb-galera-demo"
+
+db:
+  name: "mariadb_cluster"
+  user: "user"
+
+usePasswordFiles: "true"
+customPasswordFiles:
+  root: /vault/secrets/root
+  user: /vault/secrets/user
+  mariabackup: /vault/secrets/mariabackup
+    
+serviceAccount:
+  name: "mariadb-galera-vault-sa"
+
+podAnnotations:
+  vault.hashicorp.com/agent-inject: 'true'
+  vault.hashicorp.com/auth-path: auth/the-cluster
+  vault.hashicorp.com/log-level: info
+  vault.hashicorp.com/role: mariadb-galera-role
+  vault.hashicorp.com/agent-inject-secret-root: "<your-vault-secret-path>/stateful/mariadb-galera/secrets"
+  vault.hashicorp.com/agent-inject-template-root: |
+    {{ printf `{{- with secret "<your-vault-secret-path>/stateful/mariadb-galera/secrets" -}}
+    {{ .Data.data.root }}
+    {{- end }}` }}
+  vault.hashicorp.com/agent-inject-secret-user: "<your-vault-secret-path>/stateful/mariadb-galera/secrets"
+  vault.hashicorp.com/agent-inject-template-user: |
+    {{ printf `{{- with secret "<your-vault-secret-path>/stateful/mariadb-galera/secrets" -}}
+    {{ .Data.data.user }}
+    {{- end }}` }}
+  vault.hashicorp.com/agent-inject-secret-mariabackup: "<your-vault-secret-path>/stateful/mariadb-galera/secrets"
+  vault.hashicorp.com/agent-inject-template-mariabackup: |
+    {{ printf `{{- with secret "<your-vault-secret-path>/stateful/mariadb-galera/secrets" -}}
+    {{ .Data.data.mariabackup }}
+    {{- end }}` }}

@@ -1,0 +1,11 @@
+{
+    "role_type": "jwt",
+    "policies": ["gitlab-ci"],
+    "token_explicit_max_ttl": 60,
+    "user_claim": "user_email",
+    "bound_claims": {
+        "project_id": "<project_id>",
+        "ref": "master",
+        "ref_type": "branch"
+    }
+}

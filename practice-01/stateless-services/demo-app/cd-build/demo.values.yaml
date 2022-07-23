@@ -1,0 +1,36 @@
+
+
+replicaCount: 1
+namespace: demo-app-ns
+
+deployment:
+  name: demo-app-deploy
+  port: 8080
+  restart:
+    policy: Always
+
+service:
+  name: demo-app-svc
+  port: 8080
+  type: NodePort
+
+secret:
+  name: demo-app-secret
+  type: Opaque
+  vault:
+    secret: VAULT_TOKEN
+  consul:
+    secret: CONSUL_HTTP_TOKEN
+
+image:
+  repository: <your-repository-url>/demo-app/demo-app-service-api
+  tag: IMAGE_TAG
+  cred: demo-app-regcred
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1000Mi
+  requests:
+    cpu: 1000m
+    memory: 1000Mi

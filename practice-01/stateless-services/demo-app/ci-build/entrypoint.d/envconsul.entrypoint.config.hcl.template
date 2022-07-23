@@ -1,0 +1,26 @@
+
+
+# ------------- Consul Settings -------------
+consul {
+  auth {
+    enabled  = true
+  }
+}
+prefix {
+  no_prefix = true
+  path = "TMP_VARIABLE_PATH"
+}
+
+# ------------- Vault Settings -------------
+vault {
+  renew_token = true
+}
+secret {
+  no_prefix = true
+  path = "TMP_SECRET_PATH"
+}
+
+# ------------- Application Execution -------------
+exec {
+    command = "java -jar /srv/app.jar"
+}

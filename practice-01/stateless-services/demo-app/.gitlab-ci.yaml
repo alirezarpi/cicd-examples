@@ -1,0 +1,95 @@
+
+
+stages:
+  - access 
+  - build
+  - deploy
+  - cleanup
+
+variables:
+  K8S_NAMESPACE: "demo-app-ns"
+  HELM_APP: "$CI_PROJECT_NAME"
+  REG_HOST: "<your-repository-url>"
+  VAULT_ADDR: "<your-vault-server-url>"
+  CONSUL_HTTP_ADDR: "<your-consul-server-url>"
+  HELM_URI: "https://$REG_HOST/chartrepo/demo"
+  IMAGE_NAME: "$REG_HOST/demo-app/$CI_PROJECT_NAME/$CI_PROJECT_NAME"
+  IMAGE_TAG: "$CI_PIPELINE_ID"
+  APP_SECRET_PATH: "<your-vault-secret-path>/stateless/$CI_PROJECT_NAME/secrets"
+  APP_VARIABLE_PATH: "<your-consul-path>/$CI_PROJECT_NAME/vars"
+  CI_SECRET_PATH: "ci-secrets/"
+  CI_CD_REPO_REMOTE: "git@<your-cicd-repository>"  # This is when your cicd repository is outside of your application repository
+  CI_CD_REPO_LOCAL: "ci-cd/stateless-services/$CI_PROJECT_NAME"
+  SECRET_POLICY_PATH: "$CI_PROJECT_NAME"
+  CI_SECRET_ROLE: "$CI_PROJECT_NAME-role"
+
+.git_script: &git_script
+  - git clone --depth=1 $CI_CD_REPO_REMOTE
+
+access:
+  stage: access
+  image: <your-repository-url>/infrastructure/ci-cd/ci-base-image:0.0.2
+  before_script:
+    - 'vault status'
+  script:
+    - export VAULT_TOKEN="$(vault write -field=token auth/jwt/login role=$CI_SECRET_ROLE jwt=$CI_JOB_JWT)"
+    - "vault kv get -format=yaml -field=data $CI_SECRET_PATH/consul-token | sed 's/: /=/g' > /secret/${CI_PIPELINE_ID}_secrets"
+    - "vault kv get -format=yaml -field=data $CI_SECRET_PATH/reg-cred | sed 's/: /=/g' >> /secret/${CI_PIPELINE_ID}_secrets"
+    - echo APP_VAULT_TOKEN="$(vault token create -policy=$SECRET_POLICY_PATH -ttl=1h -renewable -orphan -field=token)" >> /secret/${CI_PIPELINE_ID}_secrets
+  dependencies: []
+  tags:
+    - build_sv
+  only:
+    - master
+
+build:
+  stage: build
+  image: <your-repository-url>/infrastructure/ci-cd/ci-base-image:0.0.2
+  before_script:
+    - export $(cat /secret/${CI_PIPELINE_ID}_secrets | xargs)
+    - *git_script
+  script:
+    - echo $REG_PASSWORD | docker login -u $REG_USER $REG_HOST --password-stdin
+    - docker build -f $CI_CD_REPO_LOCAL/ci-build/Dockerfile --build-arg CI_PROJECT_NAME="$CI_PROJECT_NAME"
+      --build-arg VAULT_ADDR="$VAULT_ADDR" --build-arg CONSUL_HTTP_ADDR="$CONSUL_HTTP_ADDR"
+      --build-arg SECRET_PATH="$APP_SECRET_PATH" --build-arg VARIABLE_PATH="$APP_VARIABLE_PATH" -t $IMAGE_NAME:$IMAGE_TAG .
+    - docker push $IMAGE_NAME:$IMAGE_TAG
+  after_script:
+    - docker logout $REG_HOST
+  dependencies:
+    - access
+  tags:
+    - build_sv
+  only:
+    - master
+
+deploy:
+  stage: deploy
+  image: <your-repository-url>/infrastructure/ci-cd/ci-base-image:0.0.2
+  before_script:
+    - export $(cat /secret/${CI_PIPELINE_ID}_secrets | xargs)
+    - *git_script
+  script:
+    - sed -i "s/IMAGE_TAG/$IMAGE_TAG/g; s/VAULT_TOKEN/$APP_VAULT_TOKEN/g; s/CONSUL_HTTP_TOKEN/$CONSUL_HTTP_TOKEN/g" $CI_CD_REPO_LOCAL/cd-build/*.values.yaml
+    - helm repo add --username $REG_USER --password $REG_PASSWORD $HELM_APP $HELM_URI
+    - helm cm-push $CI_CD_REPO_LOCAL/cd-build/ $HELM_APP
+  dependencies:
+    - access
+    - build
+  tags:
+    - build_sv
+  only:
+    - master
+
+cleanup:
+  stage: cleanup
+  variables:
+    GIT_STRATEGY: none
+  image: <your-repository-url>/infrastructure/ci-cd/ci-base-image:0.0.2
+  script:
+    - rm -f /secret/${CI_PIPELINE_ID}_secrets
+  when: always
+  tags:
+    - build_sv
+  only:
+    - master
