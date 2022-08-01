@@ -25,4 +25,4 @@ ARG SECRET_PATH
 ARG VARIABLE_PATH 
 RUN sed "s@TMP_SECRET_PATH@$SECRET_PATH@g;s@TMP_VARIABLE_PATH@$VARIABLE_PATH@g;" /srv/envconsul.entrypoint.config.hcl.template | tee /srv/envconsul.entrypoint.config.hcl
 
-CMD ["/usr/local/bin/envconsul", "-log-level", "info", "-config","/srv/envconsul.entrypoint.config.hcl"]
+CMD ["/usr/local/bin/envconsul", "-once", "-log-level", "info", "-config","/srv/envconsul.entrypoint.config.hcl"]
